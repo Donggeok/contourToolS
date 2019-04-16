@@ -159,6 +159,7 @@
   <ItemGroup>
     <ClInclude Include="ContourToolProcess.h" />
     <ClInclude Include="ivs_algorithm_utils.h" />
+    <ClInclude Include="ivs_contour_config.h" />
     <ClInclude Include="ivs_contour_utility.h" />
     <ClInclude Include="ivs_create_template.h" />
     <ClInclude Include="ivs_parameter.h" />

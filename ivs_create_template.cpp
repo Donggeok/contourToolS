@@ -1,14 +1,11 @@
 #include <iostream>
 #include <queue>
-#include <cstdio>
-#include <fstream>
-#include <basetsd.h>
 #include <opencv.hpp>
 
 #include "ivs_create_template.h"
 #include "ivs_algorithm_utils.h"
 
-int pack_template(const IVSTemplateStruct &ivsTemplateStruct, UINT8 *buf, int buf_free, int *bufsize)
+int packTemplate(const IVSTemplateStruct &ivsTemplateStruct, UINT8 *buf, int buf_free, int *bufsize)
 {
 	// 先计算所有要使用的内存大小，然后分配空间，最后一点点将数据拷贝过去
 	std::size_t buf_size = 0;
@@ -110,8 +107,7 @@ int pack_template(const IVSTemplateStruct &ivsTemplateStruct, UINT8 *buf, int bu
 	return 0;
 }
 
-
-void print_tpl(const IVSTemplateSubStruct &tpl) {
+void printTPLByImage(const IVSTemplateSubStruct &tpl) {
 	cv::Mat tmp(tpl.modelHeight, tpl.modelWidth, CV_8UC1, cv::Scalar(0));
 	for (int i = 0; i < tpl.noOfCordinates; ++i) {
 		tmp.at<uchar>(tpl.cordinates[i].y + tpl.centerOfGravity.y, tpl.cordinates[i].x + tpl.centerOfGravity.x) = 255;
@@ -120,7 +116,7 @@ void print_tpl(const IVSTemplateSubStruct &tpl) {
 	cv::waitKey(0);
 }
 
-static std::ostream &print_tpls(std::ostream &os, const IVSTemplateStruct & rhl)
+static std::ostream &printTPLByInfo(std::ostream &os, const IVSTemplateStruct & rhl)
 {
 	os << "runtime npyramid: " << static_cast<int>(rhl.pyramidLevelNum) << std::endl;
 	os << "angle steps each level: " << std::endl;
@@ -137,23 +133,24 @@ static std::ostream &print_tpls(std::ostream &os, const IVSTemplateStruct & rhl)
 	return os;
 }
 
-
-static std::vector<float> rotate_image(const cv::Mat &src, cv::Mat &dst, cv::Point centerP, float degree)
+static std::vector<float> rotateImage(const cv::Mat &src, cv::Mat &dst, cv::Point centerP, float degree)
 {
 	int width = src.cols;
 	int height = src.rows;
 	double angle = degree  * CV_PI / 180.; // 弧度
 	double a = sin(angle), b = cos(angle);
+
 	// 适当增大一点宽高，防止像素不在图像内
 	int width_rotate = int(height * fabs(a) + width * fabs(b));
 	int height_rotate = int(width * fabs(a) + height * fabs(b));
 	float map[6];
 	cv::Mat map_matrix = cv::Mat(2, 3, CV_32F, map);
-	//    CvPoint2D32f center = cvPoint2D32f(centerP.x, centerP.y);
+
 	// 旋转中心, 以原始图片中心作为旋转中心而不是质心
 	CvPoint2D32f center = cvPoint2D32f(width / 2.0, height / 2.0);
 	CvMat map_matrix2 = map_matrix;
 	cv2DRotationMatrix(center, degree, 1.0, &map_matrix2);
+
 	// 这里不能改
 	map[2] += (width_rotate - width) / 2.0;
 	map[5] += (height_rotate - height) / 2.0;
@@ -168,7 +165,7 @@ static std::vector<float> rotate_image(const cv::Mat &src, cv::Mat &dst, cv::Poi
 	return rotate_matrix;
 }
 
-static int rotate_rect(std::vector<cv::Point> &rect, const std::vector<float> rotate_matrix)
+static int rotateRect(std::vector<cv::Point> &rect, const std::vector<float> rotate_matrix)
 {
 	int plx = rect[0].x, ply = rect[0].y, prx = rect[3].x, pry = rect[3].y;
 	int plxb = rect[1].x, plyb = rect[1].y, prxb = rect[2].x, pryb = rect[2].y;
@@ -193,11 +190,10 @@ static unsigned short calAlign(unsigned short len, unsigned char align)
 }
 
 
-
 /*
 *  输入图像是二值化图像
 * */
-static int get_center_numof_contour(const cv::Mat src, cv::Point &center, unsigned int &numofcontour, int height, int width)
+static int getCenterNumOfContour(const cv::Mat src, cv::Point &center, unsigned int &numofcontour, int height, int width)
 {
 	double m00, m10, m01;
 	auto moments = cv::moments(src, true);
@@ -211,16 +207,14 @@ static int get_center_numof_contour(const cv::Mat src, cv::Point &center, unsign
 		// 求旋转角度步长的中心应该选为模板的中心，而不是质心
 		center.x = width / 2;
 		center.y = height / 2;
-		//center.x = static_cast<int>(m10/m00);
-		//center.y = static_cast<int>(m01/m00);
 	}
 	numofcontour = m00;
 	return 0;
 }
 
 
-// 为了保证最顶层的点数足够多，将二层图像先膨胀后再向上求最顶层的二值图
-void get_topLevel_binaryPic_by_dilationLevel(const IVSTemplateSubStruct &tpl, cv::Mat &ret_mat, int height, int width) {
+// 为了保证最顶层的点数足够多，将二层图像先膨胀后再向上求最顶层的二值图（最新没有使用膨胀操作，保留以后使用）
+void getTopLevelBinaryPicByDilationLevel(const IVSTemplateSubStruct &tpl, cv::Mat &ret_mat, int height, int width) {
 	cv::Mat tmp(tpl.modelHeight, tpl.modelWidth, CV_8UC1, cv::Scalar(0));
 	cv::Mat tmp_sameSize(height, width, CV_8UC1, cv::Scalar(0));
 	for (int i = 0; i < tpl.noOfCordinates; ++i) {
@@ -238,14 +232,13 @@ void get_topLevel_binaryPic_by_dilationLevel(const IVSTemplateSubStruct &tpl, cv
 			}
 		}
 	}
-
 	ret_mat = tmp_sameSize.clone();
 }
 
 /*
 * rect是相对640*480图片的坐标
 * */
-static int do_create_template(IVSTemplateSubStruct &tpl, const cv::Mat &src, const cv::Mat &bitmap, bool do_bitwise_and, double low_threshold, \
+static int doCreateTemplateIn(IVSTemplateSubStruct &tpl, const cv::Mat &src, const cv::Mat &bitmap, bool do_bitwise_and, double low_threshold, \
 	double high_threshold, const cv::Mat &rmWhite, int level, int max_level, const IVSTemplateSubStruct &pre_tpl)
 {
 	int s32Ret = 0;
@@ -267,7 +260,8 @@ static int do_create_template(IVSTemplateSubStruct &tpl, const cv::Mat &src, con
 
 	// 在这里进行最顶层的膨胀操作（为了保留更多的点，所以二层先做膨胀操作，之后再向上建立二值化的顶层）
 	if (level == max_level - 1) { // 顶层
-		get_topLevel_binaryPic_by_dilationLevel(pre_tpl, before_filter, src.rows, src.cols);
+		//get_topLevel_binaryPic_by_dilationLevel(pre_tpl, before_filter, src.rows, src.cols);
+		cv::Canny(src, before_filter, low_threshold, high_threshold);
 	}
 	else {
 		cv::Canny(src, before_filter, low_threshold, high_threshold);
@@ -334,11 +328,6 @@ static int do_create_template(IVSTemplateSubStruct &tpl, const cv::Mat &src, con
 					tpl.noOfCordinates++;
 				}
 			}
-			//if (U8_before) {
-			//	if (fdx != 0 || fdy != 0) {
-			//		tpl.noOfCordinates++;
-			//	}
-			//}
 		}
 	}
 
@@ -379,8 +368,10 @@ static int do_create_template(IVSTemplateSubStruct &tpl, const cv::Mat &src, con
 *  @param src必须是二值化轮廓图
 *  @return 返回当前层上最佳的旋转步长
 * */
-static float get_angle_step_and_search_width(const cv::Mat &src, cv::Point center, std::vector<UINT16> &search_rect_width)
+static float getAngleStep(const cv::Mat &src, cv::Point center)
 {
+	// 重新修改，因为现在使用搜索框的中心做质心，所以搜索框的框长需要重新计算
+
 	// 保留几个K，然后求平均值，用来排除外点的影响
 	int K = 10;
 	std::priority_queue<float> max_dist(K, -1);
@@ -402,8 +393,8 @@ static float get_angle_step_and_search_width(const cv::Mat &src, cv::Point cente
 	}
 	// 搜索框是最远点的位置，这样的话搜索框就不会超出了
 	//    search_rect_width.push_back(static_cast<UINT16>(1 + max_distance));
-	//    std::cout << "top: " << max_distance << " " << -max_dist.top() << std::endl;
-	//    std::cout << "max dist....." << std::endl;
+
+
 	float average_max_dist = 0;
 	int i = 0;
 	while (!max_dist.empty()) {
@@ -413,12 +404,13 @@ static float get_angle_step_and_search_width(const cv::Mat &src, cv::Point cente
 	average_max_dist /= K;
 	//    std::cout << "average_max_dist: " << average_max_dist << std::endl;
 
-	search_rect_width.push_back(static_cast<UINT16>(average_max_dist));
+	//// 此处乘以2的原因是因为之前都是求的距离，而搜索框的框长必须为距离的2倍
+	//search_rect_width.push_back(static_cast<UINT16>(average_max_dist)*2);
 	auto range_low = acos(1 - 1 / (2 * average_max_dist * average_max_dist)) / CV_PI * 180;
 	auto range_high = acos(1 - 2 / (average_max_dist * average_max_dist)) / CV_PI * 180;
 	//    std::cout <<"optimal angle step: " << range_low << " ~ " << range_high << std::endl;
 
-#ifndef NDEBUG
+#ifdef NDEBUG
 	cv::Mat tmp = src;
 	for (unsigned int k = points.size() - K; k < points.size(); ++k) {
 		cv::circle(tmp, points[k], 20, cv::Scalar(255, 255, 255));
@@ -427,8 +419,8 @@ static float get_angle_step_and_search_width(const cv::Mat &src, cv::Point cente
 	//    cvWaitKey(0);
 	std::cout << range_low << " " << range_high << std::endl;
 #endif
+
 	float result = std::max((range_low + range_high) / 2, 1.0);
-	//    return result;
 	return result < 6.0 ? result : 6.0;
 }
 
@@ -437,9 +429,8 @@ static float get_angle_step_and_search_width(const cv::Mat &src, cv::Point cente
 * src是截取出来的模板图片
 * bitmapCleaned是位图，大小和src一致
 */
-static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSToolContourParameter* koyo_tool_contour_parameter, IVSTemplateStruct &koyo_contour_template_runtime_param)
+static int doCreateTemplate(const cv::Mat &src, const cv::Mat &bitMap, IVSToolContourParameter* ivsToolContourParameter, IVSTemplateStruct &ivsTemplateStruct)
 {
-	// 运行完成后需要将这个内容发送给嵌入式
 
 	//  TimeTracker tt1;
 	//   tt1.start();
@@ -453,8 +444,8 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 
 	UINT8 sensitity_threshold_low, sensitity_threshold_high;
 
-	sensitity_threshold_low = koyo_tool_contour_parameter->sensiLowThreshold;
-	sensitity_threshold_high = koyo_tool_contour_parameter->sensiLowThreshold * 3;
+	sensitity_threshold_low = ivsToolContourParameter->sensiLowThreshold;
+	sensitity_threshold_high = ivsToolContourParameter->sensiLowThreshold * 3;
 	printf("the koyo_tool_contour_parameter->sensitivity_Low_Threshold is %d, the koyo_tool_contour_parameter->sensitivity_Low_Threshold*3 is %d", sensitity_threshold_low, sensitity_threshold_high);
 
 	std::cout << "create_template begin" << std::endl;
@@ -498,6 +489,7 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 		std::cout << "1 rows: " << iter->rows << " cols: " << iter->cols << std::endl;
 	}
 	std::cout << "error1" << std::endl;
+
 	for (auto &pyr : pyramid_templates) {
 #ifndef  NDEBUG
 		//        saveMat(pyr, (std::string("data//") + std::to_string(pyr.rows) + std::to_string(pyr.cols)).c_str());
@@ -509,11 +501,30 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 		std::cout << "2 rows: " << pyr.rows << " cols: " << pyr.cols << std::endl;
 		cv::Point center;
 		unsigned int num_of_contour = 0;
-		get_center_numof_contour(cannyResult, center, num_of_contour, pyr.rows, pyr.cols);
+		getCenterNumOfContour(cannyResult, center, num_of_contour, pyr.rows, pyr.cols);
 		centers.push_back(center);
 
-		// 确定角度步长, 使用Canny的轮廓图来计算最远点
-		auto step = get_angle_step_and_search_width(cannyResult, center, search_rect_width);
+		// 重新确定运行搜索框框长
+		// 矩形
+		if (ivsToolContourParameter->regionShape == 1) {
+			cv::Point p0, p2;
+			p0.x = ivsToolContourParameter->detectRectX0;
+			p0.y = ivsToolContourParameter->detectRectY0;
+			p2.x = ivsToolContourParameter->detectRectX2;
+			p2.y = ivsToolContourParameter->detectRectY2;
+			float dist = sqrt(pow(p0.x - p2.x, 2) + pow(p0.y - p2.y, 2));
+			dist /= pow(2, optimal_pyr_level);
+			search_rect_width.push_back(dist);
+		}
+		else {
+			// 圆形
+			float dist = (ivsToolContourParameter->detectCircleRadius) * 2;
+			dist /= pow(2, optimal_pyr_level);
+			search_rect_width.push_back(dist);
+		}
+
+		// 确定角度步长
+		auto step = getAngleStep(cannyResult, center);
 		if (optimal_pyr_level == 0 || optimal_pyr_level == 1) {
 			step = 1.0;
 		}
@@ -525,8 +536,8 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 			break;
 		}
 
-		// 当策略为高精度时，保证模板层数为3层，提高匹配精度
-		if (koyo_tool_contour_parameter->algoStrategy == 0 && optimal_pyr_level == 3) {
+		// 当策略为高精度时，保证模板层数更低，提高匹配精度
+		if (ivsToolContourParameter->algoStrategy == 0 && optimal_pyr_level == HIGH_PRECISION_NUM_PYRAMID) {
 			break;
 		}
 		++optimal_pyr_level;
@@ -544,13 +555,13 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 	////   TimeTracker tt;
 	//    tt.start();
 	// optimal_pyr_level肯定小于pyramid_templates的size
-	std::cout << "angle_range is : " << koyo_tool_contour_parameter->angleRange << std::endl;
+	std::cout << "angle_range is : " << ivsToolContourParameter->angleRange << std::endl;
 	for (int i = 0; i < optimal_pyr_level; ++i) {
 		std::vector<IVSTemplateSubStruct> cur_level_tpl;
 		int k = 0;
 		std::vector<cv::Point> cur_rect = { { 0, 0 },{ 0, pyramid_templates[i].rows - 1 },{ pyramid_templates[i].cols - 1, pyramid_templates[i].rows - 1 },{ pyramid_templates[i].cols - 1, 0 } };
 		// todo angle_step是否考虑做成整数
-		for (double j = -(koyo_tool_contour_parameter->angleRange); (int)j < koyo_tool_contour_parameter->angleRange; j += angle_steps[i]) {
+		for (double j = -(ivsToolContourParameter->angleRange); (int)j < ivsToolContourParameter->angleRange; j += angle_steps[i]) {
 			//            std::cout << j << " " << (int)j << std::endl;
 			IVSTemplateSubStruct tpl;
 			auto rect = cur_rect;
@@ -563,9 +574,9 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 			cv::Canny(pyramid_templates[i], rmWhite_image_canny, sensitity_threshold_low, sensitity_threshold_high);
 			// 还是无法保证完全在图片框内
 			// todo 客户端下发的bitmap也要旋转
-			auto rotate_bitmap = rotate_image(pyramid_bitmaps[i], rotated_image_bmap, centers[i], j);
-			auto rotate_matrix = rotate_image(pyramid_templates[i], rotated_image, centers[i], j);
-			rotate_image(rmWhite_image_canny, rotated_rmWhite_image, centers[i], j);
+			auto rotate_bitmap = rotateImage(pyramid_bitmaps[i], rotated_image_bmap, centers[i], j);
+			auto rotate_matrix = rotateImage(pyramid_templates[i], rotated_image, centers[i], j);
+			rotateImage(rmWhite_image_canny, rotated_rmWhite_image, centers[i], j);
 			cv::threshold(rotated_rmWhite_image, rotated_rmWhite_image, 10, 255, CV_THRESH_BINARY);
 			//Dilation(rotated_rmWhite_image, rotated_rmWhite_image, 3);
 
@@ -577,7 +588,7 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 			// 求一下该层当前角度对应下层角度的模板图(只针对顶层，一般情况下不考虑)
 			IVSTemplateSubStruct pre_tpl;
 			if (i == optimal_pyr_level - 1) {
-				int angle_idx = (j + koyo_tool_contour_parameter->angleRange) / angle_steps[i - 1];
+				int angle_idx = (j + ivsToolContourParameter->angleRange) / angle_steps[i - 1];
 				if (angle_idx > tpls[i - 1].size() - 1) {
 					angle_idx = tpls[i - 1].size() - 1;
 				}
@@ -587,17 +598,17 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 
 			// todo 多传一个参数，旋转后的bitmap, 以及dobitwise_and的flag，只在高分辨率上做bitwiseand
 			if (i <= 1) {
-				do_create_template(tpl, rotated_image, rotated_image_bmap, 1, sensitity_threshold_low,
+				doCreateTemplateIn(tpl, rotated_image, rotated_image_bmap, 1, sensitity_threshold_low,
 					sensitity_threshold_high, rotated_rmWhite_image, i, optimal_pyr_level, pre_tpl);
 			}
 			else {
-				do_create_template(tpl, rotated_image, rotated_image_bmap, 0, sensitity_threshold_low,
+				doCreateTemplateIn(tpl, rotated_image, rotated_image_bmap, 0, sensitity_threshold_low,
 					sensitity_threshold_high, rotated_rmWhite_image, i, optimal_pyr_level, pre_tpl);
 			}
 			//std::cout << "level: " << i << " num: " << tpl.noOfCordinates << std::endl;
 
 			// 打印tpl图片信息
-			//print_tpl(tpl);
+			printTPLByImage(tpl);
 			cur_level_tpl.push_back(tpl);
 			//            draw_template(rotated_image, tpl);
 			//cv::imshow(std::string("pyr") + std::string(1, i - '0'), rotated_image);
@@ -615,13 +626,11 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 #endif
 	//建立完模板需要将模板发送给客户端，需要发送的就是tpls这个数据结构
 
-
-
-	koyo_contour_template_runtime_param.pyramidLevelNum = optimal_pyr_level;
-	koyo_contour_template_runtime_param.searchAngelStep = angle_steps;
+	ivsTemplateStruct.pyramidLevelNum = optimal_pyr_level;
+	ivsTemplateStruct.searchAngelStep = angle_steps;
 	// todo 换成move操作会好一些吧
-	koyo_contour_template_runtime_param.tpls = tpls;
-	koyo_contour_template_runtime_param.searchRectWidth = search_rect_width;
+	ivsTemplateStruct.tpls = tpls;
+	ivsTemplateStruct.searchRectWidth = search_rect_width;
 
 
 	return 0;
@@ -631,61 +640,50 @@ static int do_create_template(const cv::Mat &src, const cv::Mat &bitMap, IVSTool
 /*
 *  提供给客户端的接口
 * */
-int ivs_create_template(const UINT8 *yuv, IVSToolContourParameter *koyo_tool_contour_parameter, UINT8 *buf, int buf_free, int *buf_size)
+int ivs_create_template(const UINT8 *yuv, IVSToolContourParameter *ivsToolContourParameter, UINT8 *buf, int buf_free, int *buf_size)
 {
 
 	// 获取灰度图
 	std::cout << "create_template" << std::endl;
 	auto template_image = get_y_from_yuv(yuv, WIDTH, HEIGHT);
-	//cv::GaussianBlur(template_image, template_image, cv::Size(5,5),0);
-	/* TODO 考虑不要旋转了，直接像圆那样截取出来吧 */
-	/* 圆形检测区域不做复杂的旋转后截取，只有矩形的才做旋转后截取 */
+	
 	cv::Mat bitmapCleaned;
 	cv::Mat template_roi_ext;
 	cv::Mat template_roi;
 
 	// 不管圆形还是矩形，都是一样的操作
 	// 将位图取出来，将原图外接矩形截取下来
-	bitmapCleaned.create(koyo_tool_contour_parameter->extRectHeight, koyo_tool_contour_parameter->extRectWidth, CV_8UC1);
+	bitmapCleaned.create(ivsToolContourParameter->extRectHeight, ivsToolContourParameter->extRectWidth, CV_8UC1);
 
 	// 从bitmap中恢复被擦除的位图
-	bitmap2Mat(bitmapCleaned, koyo_tool_contour_parameter->bitmaps,
-		koyo_tool_contour_parameter->extRectWidth, koyo_tool_contour_parameter->extRectHeight);
-	//cv::imshow("haha", bitmapCleaned);
-	//cv::waitKey(0);
+	bitmap2Mat(bitmapCleaned, ivsToolContourParameter->bitmaps,
+		ivsToolContourParameter->extRectWidth, ivsToolContourParameter->extRectHeight);
+	
 	// 从外接矩形位图中获取模板部分的位图
-	template_roi = template_image(cv::Rect(koyo_tool_contour_parameter->extRectX, koyo_tool_contour_parameter->extRectY, koyo_tool_contour_parameter->extRectWidth, koyo_tool_contour_parameter->extRectHeight));
+	template_roi = template_image(cv::Rect(ivsToolContourParameter->extRectX, ivsToolContourParameter->extRectY, 
+		ivsToolContourParameter->extRectWidth, ivsToolContourParameter->extRectHeight));
+	
 	// 保证两次截取出来的图大小一样
 	assert(template_roi.size == bitmapCleaned.size);
-	//    std::cout << template_roi.cols << " " << template_roi.rows << std::endl;
-	//    template_roi = template_image;
 
 	// 使用截取出来的图片进行轮廓建立
 	// 这之后擦除的代码不用改，保证这里传入的bitmap是对着的就行了
-	IVSTemplateStruct koyo_contour_template_runtime_param;
-	do_create_template(template_roi, bitmapCleaned, koyo_tool_contour_parameter, koyo_contour_template_runtime_param);
+	IVSTemplateStruct ivSTemplateStruct;
+	doCreateTemplate(template_roi, bitmapCleaned, ivsToolContourParameter, ivSTemplateStruct);
 
 	// 打包后的template_data是unique_ptr上的指针，调用release来获取原始指针，但是要记得delete []这个内存
 	std::cout << "test pack template" << std::endl;
-	//auto template_data = ;
 
-	int status = pack_template(koyo_contour_template_runtime_param, buf, buf_free, buf_size);
+	int status = packTemplate(ivSTemplateStruct, buf, buf_free, buf_size);
 
 	if (status < 0) {
 		return -1;
 	}
-	/*std::cout << " first coordinate num in: " << *(int*)(buf + 1 + 4 * 3 + 2 * 3 + 2 + 1) << std::endl;
-	std::cout << " first coordinate num in: " << *(int*)(buf + 1 + 4 * 4 + 2 * 4 + 2 + 1) << std::endl;
-	std::cout << " first coordinate num in: " << *(int*)(buf + 1 + 5 * 4 + 2 * 5 + 2 + 1) << std::endl;
-	std::cout << " first coordinate num in: " << *(int*)(buf + 1 + 6 * 4 + 2 * 6 + 2 + 1) << std::endl;*/
-
 
 	std::cout << "*****************" << buf_size << std::endl;
-	//    cv::imshow("eh" ,template_roi);
-	//    cvWaitKey(0);
+
 	std::cout << "now all done" << std::endl;
 	return 0;
-	//return template_data.release();
 }
 
 

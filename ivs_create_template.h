@@ -12,6 +12,7 @@ const int MIN_CONTOUR_PYRA = 50;
 
 #define MAX_NUM_PYRAMID  6
 const int MIN_NUM_PYRAMID = 4;
+const int HIGH_PRECISION_NUM_PYRAMID = 5;
 const double MIN_DIST = 0.0;
 
 const int WIDTH = 1920;

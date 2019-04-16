@@ -23,7 +23,7 @@ int fillErasureBitmap(cv::Mat src, IVSToolContourParameter &ivsToolContourParame
 
 void init_contour_parameter(cv::Mat src, IVSToolContourParameter &ivsToolContourParameter)
 {
-	ivsToolContourParameter.regionType = 1;
+	ivsToolContourParameter.regionShape = 1;
 
 	// 矩形检测框参数
 	ivsToolContourParameter.detectRectX0 = 600;
@@ -110,19 +110,22 @@ int main() {
 
 
 	ContourUtility contourUtility;
-	// 创建轮廓工具的工具结构体
-	createUtility(contourUtility);
 
 	IVSOriPic pic;
-	pic.width = 0;
-	pic.height = 0;
+	pic.width = 1920;
+	pic.height = 1080;
+	// 创建轮廓工具的工具结构体
+	createUtility(contourUtility, pic);
 
 	// 对于每一帧都需要重新计算该工具结构体 
 	computeUtility(contourUtility, pic);
 	
 	ContourToolProcess contourTool(ivsToolContourParameter);
+	IVSContourResult ivsContourResult;
+	// 事先赋值好id之类的
 	contourTool.initTask(contourUtility);
 
+	contourTool.doTask(contourUtility, ivsContourResult);
 
 
 	// 释放轮廓工具的工具结构体

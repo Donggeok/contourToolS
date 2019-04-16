@@ -1,0 +1,12 @@
+#ifndef IVS_CONTOUR_CONFIG_H
+#define IVS_CONTOUR_CONFIG_H
+
+// ¶¥²ãÉèÎª30£¬ÍùÏÂ²ã¼õ°ë
+#define IVS_CONTOUR_CANDIDATE_NUM	10
+
+#define IVS_CONTOUR_SCORE_THRESHOLD	0.7
+
+#define IVS_CONTOUR_NABOR_SIZE		1
+#define IVS_CONTOUR_NABOR_ANGLE		2
+
+#endif

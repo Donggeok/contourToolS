@@ -47,5 +47,8 @@
     <ClInclude Include="ivs_contour_utility.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ivs_contour_config.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

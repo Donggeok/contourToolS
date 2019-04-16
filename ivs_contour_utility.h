@@ -20,7 +20,7 @@ struct ContourUtility {
 																			//cv::Mat mask_ang_region_idx_u8[MAX_NUM_PYRAMID - 1];  //除最顶层外其余层匹配使用的候选点掩码图
 																			//hash_set_t *phset_coll;    //表示当前位置与角度是否计算过，这块是否可以使用一维空间，哪个速度快？？  这个用一块，固定大小
 
-																			/* 当前图片归一化的梯度向量表 */    //这三块数据结构是否所有轮廓工具用一块
+	/* 当前图片归一化的梯度向量表 */  
 	float **edgeX[MAX_NUM_PYRAMID];
 	float **edgeY[MAX_NUM_PYRAMID];
 
@@ -34,7 +34,7 @@ struct ContourUtility {
 	float **lookupTableS;
 };
 
-int createUtility(ContourUtility &contourUtility);
+int createUtility(ContourUtility &contourUtility, IVSOriPic pic);
 int computeUtility(ContourUtility &contourUtility, IVSOriPic ivsOriPic);
 int freeUtility(ContourUtility &contourUtility);
 
