@@ -2,6 +2,7 @@
 #define IVS_ALGORITHM_UTILS_H
 
 #include "ivs_parameter.h"
+#include <Windows.h>
 #include <opencv.hpp>
 #include <cstdarg>
 
@@ -47,5 +48,33 @@ T IVS_MAX(int num, ...) {
 	va_end(arg_ptr);
 	return result;
 }
+
+class IVSTimer{
+private:
+	LARGE_INTEGER start_time;
+	LARGE_INTEGER end_time;
+	LARGE_INTEGER frequency;
+
+public:
+	IVSTimer(){
+		QueryPerformanceFrequency(&frequency);
+	}
+
+	void start(){
+		QueryPerformanceCounter(&start_time);
+	}
+
+	void end(){
+		QueryPerformanceCounter(&end_time);
+	}
+
+	// µ¥Î»ÊÇus
+	double getSpendTime(){
+		double spendtime;
+		spendtime = ((double)end_time.QuadPart - (double)start_time.QuadPart) / (double)frequency.QuadPart;
+		return spendtime;
+	}
+
+};
 
 #endif

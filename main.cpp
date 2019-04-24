@@ -8,7 +8,7 @@
 UINT8 erasureBitmap[1920 * 1080];
 UINT8 resultBitmap[1024 * 1024 * 100];	//100M
 
-										// 返回bitmap的填充大小
+// 返回bitmap的填充大小
 int fillErasureBitmap(cv::Mat src, IVSToolContourParameter &ivsToolContourParameter) {
 	memset(erasureBitmap, 0, 1920 * 1080);
 	// 这里使用clone()主要是因为matClean会改变src的数据
@@ -18,6 +18,15 @@ int fillErasureBitmap(cv::Mat src, IVSToolContourParameter &ivsToolContourParame
 	//cv::imshow("matClean", matClean);
 	//cv::waitKey(0);
 	mat2Bitmap(matClean, erasureBitmap, ivsToolContourParameter.extRectWidth, ivsToolContourParameter.extRectHeight);
+
+	FILE *fp = fopen((const char*)ivsToolContourParameter.templatePath, "wb");
+	if (!fp) {
+		printf("file not found!\n");
+		return -1;
+	}
+	fwrite(erasureBitmap, sizeof(UINT8), ivsToolContourParameter.extRectWidth*ivsToolContourParameter.extRectHeight, fp);
+	fclose(fp);
+
 	return ivsToolContourParameter.extRectWidth*ivsToolContourParameter.extRectHeight;
 }
 
@@ -65,18 +74,13 @@ void init_contour_parameter(cv::Mat src, IVSToolContourParameter &ivsToolContour
 	// 算法处理及评分相关
 	ivsToolContourParameter.scoreLowThreshold = 80;
 	ivsToolContourParameter.scoreTopThreshold = 250;
-
-	int erasureBitmapSize = fillErasureBitmap(src, ivsToolContourParameter);
-	ivsToolContourParameter.erasureBitmapSize = erasureBitmapSize;
-	ivsToolContourParameter.bitmaps = erasureBitmap;
-	char templatePath[128] = "D:\\QQPCmgr\\Desktop\\contourToolS\\contourToolS\\timg.moban";
+	char templatePath[128] = "C:\\Users\\donggeok\\Desktop\\19201080\\VI_contour10.moban";
 	memcpy(ivsToolContourParameter.templatePath, templatePath, 128);
-
 
 }
 
 int main() {
-	std::string filename("D:\\QQPCmgr\\Desktop\\contourToolS\\contourToolS\\timg.jpg");
+	std::string filename("C:\\Users\\donggeok\\Desktop\\19201080\\VI_contour10.jpg");
 	std::cout << "ok" << std::endl;
 	cv::Mat template_image;
 	UINT8 *buf = nullptr;
@@ -89,44 +93,57 @@ int main() {
 		template_image = cv::imread(filename, 0);
 		buf = template_image.data;
 	}
-
+	IVSTimer time1;
+	time1.start();
 	IVSToolContourParameter ivsToolContourParameter;
 	init_contour_parameter(template_image, ivsToolContourParameter);
 
-	//int buf_size;
 	//// 返回指向需要被发送的内存缓冲区的指针
-	//ivs_create_template(buf, &ivsToolContourParameter, resultBitmap, 1024 * 1024 * 100, &buf_size);
+	//fillErasureBitmap(template_image, ivsToolContourParameter);
+	//ivs_create_template(buf, &ivsToolContourParameter);
 
-	//// 创建待测图的图像金字塔
-	//std::cout << std::endl << "**************待测图******************" << std::endl;
-	////match_sample_template(buf, template_data);
-	//FILE *fp = fopen((const char*)ivsToolContourParameter.templatePath, "wb");
-	//if (!fp) {
-	//	printf("file not found!\n");
-	//	return -1;
-	//}
-	//fwrite(resultBitmap, sizeof(UINT8), buf_size, fp);
-	//fclose(fp);
 
+	
 
 	ContourUtility contourUtility;
 
-	IVSOriPic pic;
-	pic.width = 1920;
-	pic.height = 1080;
+	int picWidth = 1920;
+	int picHeight = 1080;
 	// 创建轮廓工具的工具结构体
-	createUtility(contourUtility, pic);
+	createUtility(contourUtility, picWidth, picHeight);
 
+	IVSOriPic pic;
+	pic.width = picWidth;
+	pic.height = picHeight;
 	// 对于每一帧都需要重新计算该工具结构体 
+	IVSTimer time2;
+	time2.start();
 	computeUtility(contourUtility, pic);
+	time2.end();
+	std::cout << "computeUtility first：" << time2.getSpendTime() * 1000 << "ms" << std::endl;
 	
+	for (int i = 0; i < 10; ++i){
+		time2.start();
+		computeUtility(contourUtility, pic);
+		time2.end();
+		std::cout << "computeUtility second：" << time2.getSpendTime() * 1000 << "ms" << std::endl;
+	}
+	
+
 	ContourToolProcess contourTool(ivsToolContourParameter);
-	IVSContourResult ivsContourResult;
 	// 事先赋值好id之类的
 	contourTool.initTask(contourUtility);
 
-	contourTool.doTask(contourUtility, ivsContourResult);
+	UINT8 *resultBuffer = (UINT8 *)malloc((sizeof(IVSContourResult)+1920 * 1080)*sizeof(UINT8));
+	size_t resultBufferSize = 0;
 
+
+	contourTool.doTask(contourUtility, resultBuffer, &resultBufferSize);
+	time1.end();
+
+	free(resultBuffer);
+
+	std::cout << "总时长：" << time1.getSpendTime() * 1000 << "ms" << std::endl;
 
 	// 释放轮廓工具的工具结构体
 	freeUtility(contourUtility);

@@ -2,18 +2,19 @@
 #include <queue>
 #include <opencv.hpp>
 
+
 #include "ivs_create_template.h"
 #include "ivs_algorithm_utils.h"
 
-int packTemplate(const IVSTemplateStruct &ivsTemplateStruct, UINT8 *buf, int buf_free, int *bufsize)
+int packTemplate(const IVSTemplateStruct &ivsTemplateStruct, UINT8 *buf, int buf_free, size_t *bufsize)
 {
 	// 先计算所有要使用的内存大小，然后分配空间，最后一点点将数据拷贝过去
-	std::size_t buf_size = 0;
+	size_t buf_size = 0;
 
 	buf_size += sizeof(ivsTemplateStruct.pyramidLevelNum);					// 保存金字塔层数
 	buf_size += sizeof(float)* ivsTemplateStruct.pyramidLevelNum;			// 保存金字塔每层的角度步长
 	buf_size += sizeof(UINT16)* ivsTemplateStruct.pyramidLevelNum;			// 保存金字塔每层的搜索框框长
-																			// 要记录每层金字塔上的模板个数
+	// 要记录每层金字塔上的模板个数
 
 	for (const auto &tpl_arr : ivsTemplateStruct.tpls) {
 		// 每层金字塔上的模板个数
@@ -24,7 +25,7 @@ int packTemplate(const IVSTemplateStruct &ivsTemplateStruct, UINT8 *buf, int buf
 			buf_size += sizeof(tpl.modelHeight);
 			buf_size += sizeof(tpl.modelWidth);
 
-			buf_size += sizeof(short) * 2;									// 保存重心坐标
+			buf_size += sizeof(short)* 2;									// 保存重心坐标
 
 			buf_size += sizeof(cv::Point) * tpl.noOfCordinates;
 			buf_size += sizeof(float)* tpl.noOfCordinates;
@@ -32,7 +33,11 @@ int packTemplate(const IVSTemplateStruct &ivsTemplateStruct, UINT8 *buf, int buf
 		}
 	}
 
-	if (buf_size > buf_free) {
+	if (bufsize && buf_size > buf_free) {
+		*bufsize = buf_size;
+		return -1;
+	}
+	if (buf_size > buf_free){
 		return -1;
 	}
 
@@ -99,10 +104,9 @@ int packTemplate(const IVSTemplateStruct &ivsTemplateStruct, UINT8 *buf, int buf
 	}
 	std::cout << "buf_size: " << buf_size << ", index: " << index << std::endl;
 	std::cout << buf_size << ", in MB: " << 1.0 * buf_size / 1024 / 1024 << "MB" << std::endl;
-	std::cout << "address of " << bufsize << std::endl;
-	*bufsize = buf_size;
+
 	std::cout << "after pack" << std::endl;
-	std::cout << *bufsize << ", in MB: " << 1.0 * *bufsize / 1024 / 1024 << "MB" << std::endl;
+	std::cout << buf_size << ", in MB: " << 1.0 * buf_size / 1024 / 1024 << "MB" << std::endl;
 
 	return 0;
 }
@@ -244,7 +248,7 @@ static int doCreateTemplateIn(IVSTemplateSubStruct &tpl, const cv::Mat &src, con
 	int s32Ret = 0;
 	cv::Mat gx;                //Matrix to store X derivative
 	cv::Mat gy;                //Matrix to store Y derivative
-							   // set width and height
+	// set width and height
 	tpl.modelHeight = static_cast<UINT16>(src.rows);    //Save Template height
 	tpl.modelWidth = static_cast<UINT16>(src.cols);    //Save Template width
 
@@ -253,8 +257,8 @@ static int doCreateTemplateIn(IVSTemplateSubStruct &tpl, const cv::Mat &src, con
 	cv::Sobel(src, gx, CV_16S, 1, 0, 3);        //gradient in X direction
 	cv::Sobel(src, gy, CV_16S, 0, 1, 3);        //gradient in Y direction
 
-												//    cv::Mat binaryContour;
-												//    cv::Canny(src, binaryContour, low_threshold, high_threshold);
+	//    cv::Mat binaryContour;
+	//    cv::Canny(src, binaryContour, low_threshold, high_threshold);
 
 	cv::Mat binaryContour, before_filter;
 
@@ -420,7 +424,7 @@ static float getAngleStep(const cv::Mat &src, cv::Point center)
 	std::cout << range_low << " " << range_high << std::endl;
 #endif
 
-	float result = std::max((range_low + range_high) / 2, 1.0);
+	float result = (std::max)((range_low + range_high) / 2, 1.0);
 	return result < 6.0 ? result : 6.0;
 }
 
@@ -559,7 +563,7 @@ static int doCreateTemplate(const cv::Mat &src, const cv::Mat &bitMap, IVSToolCo
 	for (int i = 0; i < optimal_pyr_level; ++i) {
 		std::vector<IVSTemplateSubStruct> cur_level_tpl;
 		int k = 0;
-		std::vector<cv::Point> cur_rect = { { 0, 0 },{ 0, pyramid_templates[i].rows - 1 },{ pyramid_templates[i].cols - 1, pyramid_templates[i].rows - 1 },{ pyramid_templates[i].cols - 1, 0 } };
+		std::vector<cv::Point> cur_rect = { { 0, 0 }, { 0, pyramid_templates[i].rows - 1 }, { pyramid_templates[i].cols - 1, pyramid_templates[i].rows - 1 }, { pyramid_templates[i].cols - 1, 0 } };
 		// todo angle_step是否考虑做成整数
 		for (double j = -(ivsToolContourParameter->angleRange); (int)j < ivsToolContourParameter->angleRange; j += angle_steps[i]) {
 			//            std::cout << j << " " << (int)j << std::endl;
@@ -640,13 +644,13 @@ static int doCreateTemplate(const cv::Mat &src, const cv::Mat &bitMap, IVSToolCo
 /*
 *  提供给客户端的接口
 * */
-int ivs_create_template(const UINT8 *yuv, IVSToolContourParameter *ivsToolContourParameter, UINT8 *buf, int buf_free, int *buf_size)
+int ivs_create_template(const UINT8 *yuv, IVSToolContourParameter *ivsToolContourParameter)
 {
 
 	// 获取灰度图
 	std::cout << "create_template" << std::endl;
 	auto template_image = get_y_from_yuv(yuv, WIDTH, HEIGHT);
-	
+
 	cv::Mat bitmapCleaned;
 	cv::Mat template_roi_ext;
 	cv::Mat template_roi;
@@ -655,14 +659,25 @@ int ivs_create_template(const UINT8 *yuv, IVSToolContourParameter *ivsToolContou
 	// 将位图取出来，将原图外接矩形截取下来
 	bitmapCleaned.create(ivsToolContourParameter->extRectHeight, ivsToolContourParameter->extRectWidth, CV_8UC1);
 
+	
+
 	// 从bitmap中恢复被擦除的位图
-	bitmap2Mat(bitmapCleaned, ivsToolContourParameter->bitmaps,
-		ivsToolContourParameter->extRectWidth, ivsToolContourParameter->extRectHeight);
-	
+	FILE *fp = fopen((const char*)ivsToolContourParameter->templatePath, "rb");
+	fseek(fp, 0L, SEEK_END);
+	size_t eraseBitmapSize = ftell(fp);
+	std::cout << "eraseBitmapSize is" << eraseBitmapSize << std::endl;
+	rewind(fp);
+	UINT8 *eraseBitmap = (UINT8 *)malloc(sizeof(UINT8)*eraseBitmapSize);
+	fread(eraseBitmap, sizeof(UINT8), eraseBitmapSize, fp);
+	fclose(fp);
+
+
+	bitmap2Mat(bitmapCleaned, eraseBitmap, ivsToolContourParameter->extRectWidth, ivsToolContourParameter->extRectHeight);
+	free(eraseBitmap);
 	// 从外接矩形位图中获取模板部分的位图
-	template_roi = template_image(cv::Rect(ivsToolContourParameter->extRectX, ivsToolContourParameter->extRectY, 
+	template_roi = template_image(cv::Rect(ivsToolContourParameter->extRectX, ivsToolContourParameter->extRectY,
 		ivsToolContourParameter->extRectWidth, ivsToolContourParameter->extRectHeight));
-	
+
 	// 保证两次截取出来的图大小一样
 	assert(template_roi.size == bitmapCleaned.size);
 
@@ -674,33 +689,45 @@ int ivs_create_template(const UINT8 *yuv, IVSToolContourParameter *ivsToolContou
 	// 打包后的template_data是unique_ptr上的指针，调用release来获取原始指针，但是要记得delete []这个内存
 	std::cout << "test pack template" << std::endl;
 
-	int status = packTemplate(ivSTemplateStruct, buf, buf_free, buf_size);
-
-	if (status < 0) {
-		return -1;
-	}
+	size_t buf_size = 0;
+	// 首先获取buf_size
+	packTemplate(ivSTemplateStruct, NULL, 0, &buf_size);
+	UINT8 *buf = (UINT8 *)malloc(sizeof(UINT8)*buf_size);
+	packTemplate(ivSTemplateStruct, buf, buf_size, NULL);
 
 	std::cout << "*****************" << buf_size << std::endl;
 
-	std::cout << "now all done" << std::endl;
-	return 0;
-}
-
-
-int get_contours(const UINT8 *yuv, UINT8 *contours[3], int low_threshold, int high_threshold)
-{
-	int low = low_threshold;
-	int high = low_threshold * 3;
-	auto src = get_y_from_yuv(yuv, WIDTH, HEIGHT);
-	cv::GaussianBlur(src, src, cv::Size(3, 3), 0);
-	cv::Mat contour;
-	cv::Canny(src, contour, low, high);
-	for (int i = 0; i < HEIGHT; ++i) {
-		for (int j = 0; j < WIDTH; ++j) {
-			contours[0][i * WIDTH + j] = contour.at<uchar>(i, j);
-		}
+	// 将模板保存成文件
+	fp = fopen((const char*)ivsToolContourParameter->templatePath, "wb");
+	if (!fp) {
+		printf("file not found!\n");
+		return -1;
 	}
-	return 0;
+	fwrite(buf, sizeof(UINT8), buf_size, fp);
+	fclose(fp);
 
+
+	std::cout << "now all done" << std::endl;
+
+
+	return 0;
 }
+
+
+//int get_contours(const UINT8 *yuv, UINT8 *contours, int low_threshold, int high_threshold)
+//{
+//	int low = low_threshold;
+//	int high = low_threshold * 3;
+//	auto src = get_y_from_yuv(yuv, WIDTH, HEIGHT);
+//	cv::GaussianBlur(src, src, cv::Size(3, 3), 0);
+//	cv::Mat contour;
+//	cv::Canny(src, contour, low, high);
+//	for (int i = 0; i < HEIGHT; ++i) {
+//		for (int j = 0; j < WIDTH; ++j) {
+//			contours[0][i * WIDTH + j] = contour.at<uchar>(i, j);
+//		}
+//	}
+//	return 0;
+//
+//}
 

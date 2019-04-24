@@ -29,7 +29,7 @@ private:
 	std::vector<cv::Rect> searchRect;						// 代表搜索区域（全局和局部）
 	std::vector<cv::Mat> cannyPyramid;						// 每个工具独有的canny金字塔
 	std::vector<cv::Mat> cannyDilatePyramid;				// 每个工具独有的膨胀canny金字塔
-	std::vector<std::priority_queue<CandidateResult>> candidates;	// 每一层的候选位置信息
+	std::vector<std::priority_queue<CandidateResult>> candidates;	// 每一层的候选位置信息（从高层往底层填充结果，0层代表高层）
 
 private:
 	int unpackTemplate(char* buf);
@@ -45,7 +45,7 @@ public:
 	// 初始化任务
 	int initTask(ContourUtility &contourUtility);
 	// 执行任务并返回结果
-	int doTask(ContourUtility &contourUtility, IVSContourResult& contourResult);
+	int doTask(ContourUtility &contourUtility, UINT8 *contourResultAndBitmap, size_t *bufSize);
 	// 释放任务
 	int freeTask();
 };

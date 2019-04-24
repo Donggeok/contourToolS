@@ -52,7 +52,7 @@ struct IVSTemplateStruct {
 * @param yuv是传感器传上来的yuv图像，koyo_tool_contour_paramter, 是原先定义好的参数，这个和原来传给传感器的参数一样，需要是设置好的
 * @return 返回值是需要向传感器发送的buf缓冲区的指针，传过去以后由调用create_template的函数进行释放。
 * */
-int ivs_create_template(const UINT8 *yuv, IVSToolContourParameter *koyo_tool_contour_parameter, UINT8 *buf_start, int buf_free, int *buf_size);
-int get_contours(const UINT8 *yuv, UINT8 *contours, int low_threshold, int high_threshold);
+int ivs_create_template(const UINT8 *yuv, IVSToolContourParameter *ivsToolContourParameter);
+int ivs_get_contours(const UINT8 *yuv, UINT8 *contours, int low_threshold, int high_threshold);
 
 #endif //IVS_CREATE_TEMPLATE_H

@@ -24,6 +24,15 @@
     <ClInclude Include="ivs_algorithm_utils.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ivs_contour_utility.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ivs_contour_config.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ivs_create_template.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ContourToolProcess.cpp">
@@ -33,6 +42,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ivs_algorithm_utils.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ivs_contour_utility.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ivs_create_template.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

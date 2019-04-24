@@ -15,7 +15,6 @@ struct IVSOriPic
 	UINT32	visize[2];
 	UINT32	stride[2];
 	UINT32  yuvSize;                //原始图片大小、
-	UINT8	payload[0];				//附原始图片,柔性数组
 };
 
 struct IVSRgbPic
@@ -23,7 +22,6 @@ struct IVSRgbPic
 	UINT32  width;
 	UINT32  height;
 	UINT32  rgbSize;                //RGB编码图片大小
-	UINT8	payload[0];				//附编码图片,柔性数组
 };
 
 struct IVSToolContourParameter
@@ -71,9 +69,10 @@ struct IVSToolContourParameter
 	INT16	searchRectY3;			// 相对左上角圆点坐标右上点纵坐标
 
 	/* 算法策略相关 */
-	UINT16	angleRange;				// 搜索角度范围
-	UINT16	sensiTopThreshold;		// canny算子阈值上限
-	UINT16	sensiLowThreshold;		// canny算子阈值下限
+	UINT8	angleRange;				// 搜索角度范围
+	UINT8	algoStrategy;			// 高速度或者高精度算法策略（高精度为0，高速度为1）
+	UINT8	sensiTopThreshold;		// canny算子阈值上限
+	UINT8	sensiLowThreshold;		// canny算子阈值下限
 
 	/* 算法处理及评分相关 */
 	UINT16	scoreTopThreshold;		// 处理结果阈值上限
@@ -81,8 +80,6 @@ struct IVSToolContourParameter
 	UINT32  erasureBitmapSize;		// 擦除位图大小,单位是bit
 	UINT32	templateBitmapSize;		// 工具模板位图的大小
 	INT8	templatePath[128];		// 位图路径
-	UINT8	algoStrategy;			// 高速度或者高精度算法策略（高精度为0，高速度为1）
-	UINT8	*bitmaps;				// 检测区域外接矩形位图,柔性数组
 };
 
 /* 轮廓工具处理结果 */
@@ -93,7 +90,7 @@ struct IVSContourResult
 	INT32	toolType;				// 工具类型
 	UINT8	regionShape;			// 搜索区域形状
 	INT8	toolIsOk;				// 工具结果是否OK
-	INT16	toolValue;				// 工具结果评分
+	INT16	toolScore;				// 工具结果评分
 
 	/* 矩形检测框参数 */
 	INT16	detectRectX0;			// 相对左上角圆点坐标左上点横坐标
@@ -126,8 +123,8 @@ struct IVSContourResult
 	INT16	searchRectX3;			// 相对左上角圆点坐标右上点横坐标
 	INT16	searchRectY3;			// 相对左上角圆点坐标右上点纵坐标
 
-	UINT8	*pBitmapStart;			// 指向轮廓位图的指针
-	UINT16	bitmapSize;				// 实际位图大小(模板外接矩形位图,不足8的倍数补足8位)单位是bit
+	INT16	algin;					// 对齐填充
+	UINT32	bitmapSize;				// 实际位图大小(模板外接矩形位图,不足8的倍数补足8位)单位是bit
 };
 
 #endif
